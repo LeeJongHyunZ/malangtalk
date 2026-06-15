@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import {
   RELATIONS,
   softenMessage,
@@ -7,14 +7,61 @@ import {
 } from "./services/messageSoftener";
 import "./App.css";
 
+// 클립보드 복사: 최신 Clipboard API 우선, 안 되면 execCommand 폴백.
+// 성공 여부를 boolean 으로 돌려줘서 호출 측이 안내를 띄울 수 있게 함.
+async function copyToClipboard(text: string): Promise<boolean> {
+  // HTTPS(또는 localhost) 보안 컨텍스트에서만 동작
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // 권한 거부 등 → 아래 폴백으로
+    }
+  }
+
+  // 구형 브라우저 / 비보안 컨텍스트 폴백
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.setAttribute("readonly", "");
+  ta.style.position = "fixed";
+  ta.style.top = "0";
+  ta.style.left = "-9999px";
+  document.body.appendChild(ta);
+  ta.select();
+  ta.setSelectionRange(0, text.length);
+  let ok = false;
+  try {
+    ok = document.execCommand("copy");
+  } catch {
+    ok = false;
+  }
+  document.body.removeChild(ta);
+  return ok;
+}
+
 function App() {
   const [relationKey, setRelationKey] = useState<RelationKey>("father");
   const [customLabel, setCustomLabel] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<SoftenResult | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<number | null>(null);
 
   const relation = RELATIONS.find((r) => r.key === relationKey)!;
+
+  function showToast(text: string) {
+    setToast(text);
+    if (toastTimer.current !== null) window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(null), 2000);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (toastTimer.current !== null) window.clearTimeout(toastTimer.current);
+    };
+  }, []);
 
   async function onSubmit() {
     setLoading(true);
@@ -24,33 +71,33 @@ function App() {
     setLoading(false);
   }
 
-  function copyText(text: string) {
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    ta.setAttribute("readonly", "");
-    ta.style.position = "fixed";
-    ta.style.top = "0";
-    ta.style.left = "-9999px";
-    document.body.appendChild(ta);
-    ta.select();
-    try {
-      document.execCommand("copy");
-    } catch {
-      // ignore
-    }
-    document.body.removeChild(ta);
+  async function copyText(text: string) {
+    const ok = await copyToClipboard(text);
+    showToast(ok ? "복사했어요" : "복사에 실패했어요");
   }
 
   async function shareText(text: string) {
-    try {
-      if (typeof navigator.share === "function") {
-        await navigator.share({ text });
-        return;
+    // 모바일 웹/지원 데스크톱: 네이티브 공유 시트
+    if (typeof navigator.share === "function") {
+      const payload = { text };
+      // canShare 가 있으면 미리 검증 (없으면 그냥 시도)
+      const canShare =
+        typeof navigator.canShare !== "function" || navigator.canShare(payload);
+      if (canShare) {
+        try {
+          await navigator.share(payload);
+          return; // 공유 성공
+        } catch (err) {
+          // 사용자가 공유를 취소한 경우는 복사로 넘기지 않고 조용히 종료
+          if (err instanceof DOMException && err.name === "AbortError") return;
+          // 그 외 오류는 아래 복사 폴백으로
+        }
       }
-    } catch {
-      // 사용자 취소 또는 비지원
     }
-    copyText(text);
+
+    // 공유 미지원(대부분의 PC 브라우저) → 클립보드 복사 + 안내
+    const ok = await copyToClipboard(text);
+    showToast(ok ? "공유 기능이 없어 복사했어요" : "복사에 실패했어요");
   }
 
   return (
@@ -147,6 +194,12 @@ function App() {
               </div>
             </>
           )}
+        </div>
+      )}
+
+      {toast && (
+        <div className="toast" role="status" aria-live="polite">
+          {toast}
         </div>
       )}
     </div>
