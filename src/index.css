@@ -1,52 +1,31 @@
 :root {
-  --color-primary: #FF7AA2;
-  --color-primary-weak: #FFE5EE;
-  --color-text: #191F28;
-  --color-text-secondary: #4E5968;
-  --color-bg: #FFFFFF;
-  --color-bg-muted: #F2F4F6;
-  --color-border: #E5E8EB;
-  --color-warning-bg: #FFF7E6;
-  --color-warning-text: #6A4B00;
-  --max-width: 560px;
   font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
     "Pretendard Variable", Pretendard, "Segoe UI", "Malgun Gothic", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  color: var(--color-text);
 }
 
 * {
-  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 }
 
-html,
 body {
   margin: 0;
-  padding: 0;
-  background: var(--color-bg);
+  min-width: 320px;
   min-height: 100vh;
 }
 
-#root {
-  min-height: 100vh;
-  max-width: var(--max-width);
-  margin: 0 auto;
+@media (min-width: 481px) {
+  body {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    background-color: #f5f5f5 !important;
+  }
 }
 
 button,
 input,
 textarea {
   font-family: inherit;
-  font-size: inherit;
-  color: inherit;
-}
-
-button {
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-a {
-  color: var(--color-primary);
 }
